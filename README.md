@@ -48,6 +48,11 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
    - **Approach**: Refine the GP model with additional data and focus on exploitation/exploration by querying regions evaluate if needed to change the the strategy to explore or exploit depending on the functions behaviour. Analyze the use of SVM in the functions.
    - **Rationale**: Exploits promising areas identified in earlier submissions while still accounting for uncertainty.
 
+4. **Fourth Submission**:
+   - **Approach**: Refine the GP model with additional data and focus on exploitation/exploration by querying regions evaluate if needed to change the the strategy to explore or exploit depending on the functions behaviour. Analyze the use of Neural networks as a surrogate model in the functions.
+   Try the categorize in such a way thet we could supervised learning methodology and copare if could use neural networks.
+   - **Rationale**: Exploits promising areas identified in earlier submissions while still accounting for uncertainty.
+
 ### Machine Learning Methods:
 - **Gaussian Processes**: Used to model the unknown function and predict outputs based on prior observations.
 - **Acquisition Functions**: Guides the selection of new queries by balancing exploration and exploitation.
