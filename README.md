@@ -53,6 +53,10 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
    Try the categorize in such a way thet we could supervised learning methodology and copare if could use neural networks.
    - **Rationale**: Exploits promising areas identified in earlier submissions while still accounting for uncertainty.
 
+5. **Fourth Submission**:
+   - **Approach**: Refine the GP model with additional data and focus on exploitation/exploration by querying regions evaluate if needed to change the the strategy to explore or exploit depending on the functions behaviour. Compare Neural networks strategies with evaluating BBO problem.
+   - **Rationale**: Do some more exploration to see behavious for more untested regions to check the behaviour.
+
 ### Machine Learning Methods:
 - **Gaussian Processes**: Used to model the unknown function and predict outputs based on prior observations.
 - **Acquisition Functions**: Guides the selection of new queries by balancing exploration and exploitation.
