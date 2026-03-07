@@ -53,9 +53,19 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
    Try the categorize in such a way thet we could supervised learning methodology and copare if could use neural networks.
    - **Rationale**: Exploits promising areas identified in earlier submissions while still accounting for uncertainty.
 
-5. **Fourth Submission**:
+5. **Fifth Submission**:
    - **Approach**: Refine the GP model with additional data and focus on exploitation/exploration by querying regions evaluate if needed to change the the strategy to explore or exploit depending on the functions behaviour. Compare Neural networks strategies with evaluating BBO problem.
    - **Rationale**: Do some more exploration to see behavious for more untested regions to check the behaviour.
+
+6. ### Sixth Submission
+- **Approach**: Move to a comparison of scalable surrogates: train a neural‑network surrogate (MC‑dropout or small ensemble) alongside an SVR ensemble and the existing GP where feasible. Use a mixed acquisition strategy (UCB + Expected Improvement) with a tuned beta to balance exploration/exploitation. Run Optuna-style tuning (multi‑fidelity / pruning) for key NN hyperparameters (lr, dropout, units) on a validation split. Perform batch scoring over X_grid to pick the next query.
+- **Rationale**: NNs scale to higher dimensions and can leverage accumulated data; SVR ensembles provide a fast, robust baseline and empirical uncertainty. Mixed acquisition reduces risk from overconfident single‑model predictions. Hyperparameter tuning and pruning preserve the limited query budget.
+- **Concrete actions**:
+  - Train NN surrogate with MC‑dropout, and a bootstrap SVR ensemble; record mu and sigma per model.
+  - Compute UCB_nn = mu_nn + beta * sigma_nn and UCB_svr = mu_svr + beta * sigma_svr; form combined score (weighted average or max) to select x_next.
+  - Calibrate probabilities / uncertainties (calibration plots, Brier score) before relying on acquisition.
+  - Query the black‑box at x_next, append to dataset, retrain surrogates, and log results (value, model used, uncertainty).
+  - Save checkpoints, scalers and Optuna study results to experiments/ for reproducibility.
 
 ### Machine Learning Methods:
 - **Gaussian Processes**: Used to model the unknown function and predict outputs based on prior observations.
