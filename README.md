@@ -67,6 +67,38 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   - Query the black‑box at x_next, append to dataset, retrain surrogates, and log results (value, model used, uncertainty).
   - Save checkpoints, scalers and Optuna study results to experiments/ for reproducibility.
 
+### Seventh Submission — Results (suggested content)
+
+- Summary: run length = 7 queries per function; batch scoring used; mixed acquisition (UCB + EI); surrogates compared = GP / SVR ensemble / NN (MC‑dropout).
+
+- Key outcomes (fill with your values):
+  - Best objective per function (value @ query #): 
+    - F1: best = ____ (q=__); surrogate used = ____
+    - F2: best = ____ (q=__); surrogate used = ____
+    - F3: ...
+  - Aggregate: median improvement over baseline = ____%; best single improvement = ____ (function __).
+  - Calibration: Brier score (NN) = ____, Brier (GP) = ____, calibration slope/intercept = ____.
+  - Optuna tuning: best val_loss = ____, best params = {lr:__, dropout:__, units:__}.
+  - Runtime: average training time per iteration = __ sec; batch scoring cost = __ sec.
+
+- Recommended plots to include in results/:
+  - Best-so-far vs queries (one plot per function or combined small multiples).
+  - Surrogate mean ± std heatmap or contour over X_grid (2D functions) for each surrogate.
+  - Calibration plots (predicted prob vs empirical) and Brier scores.
+  - Acquisition map (UCB/EI) showing selected x_next.
+  - Optuna hyperparameter importance chart and study trace.
+
+- Short interpretation (example bullets to adapt):
+  - NN (MC‑dropout) outperformed SVR in high‑dim functions (F7/F8) after week 5, likely due to higher capacity and more data.
+  - GP remained most reliable for low‑dim, low‑data functions (F1–F4) with best calibrated uncertainties.
+  - Over‑exploitation observed on F5 after q=4 — reduce beta or increase exploration in next round.
+  - Feature analysis: input 4 appears low‑importance for F5; consider dropping or reweighting.
+
+- Next steps
+  - Run ablations: (1) remove uncertainty, (2) increase beta, (3) ensemble top‑3 NNs — compare.
+  - Save final surrogate checkpoints, scalers and Optuna study files to experiments/ and record seed for reproducibility.
+  - Prepare a short "Results" notebook that loads experiments/ and reproduces the above plots for the report.
+
 ### Machine Learning Methods:
 - **Gaussian Processes**: Used to model the unknown function and predict outputs based on prior observations.
 - **Acquisition Functions**: Guides the selection of new queries by balancing exploration and exploitation.
