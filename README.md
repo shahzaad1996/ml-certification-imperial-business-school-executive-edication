@@ -99,6 +99,25 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   - Save final surrogate checkpoints, scalers and Optuna study files to experiments/ and record seed for reproducibility.
   - Prepare a short "Results" notebook that loads experiments/ and reproduces the above plots for the report.
 
+### Eighth Submission
+
+- **Approach**: Finalise and evaluate the production‑ready pipeline. Build an ensemble surrogate (weighted combination of GP where feasible, SVR ensemble and NN ensemble / MC‑dropout). Use calibrated uncertainty to drive a small batch of final queries (batch BO) and run focused exploit/explore trade‑offs per function.
+
+- **Rationale**: Combine strengths — GP calibration for low‑dim tasks, SVR for robust mid‑range performance, and NNs for scalability in higher dimensions. Ensemble + calibration reduces single‑model failure modes before final decisions.
+
+- **Concrete actions**:
+  - Produce final ensembles: train top‑K models per surrogate class, calibrate (temperature scaling / isotonic / Platt), and compute ensemble mu and sigma.
+  - Run batch acquisition (3–5 points) per function using combined acquisition (weighted UCB/EI) and record outcomes.
+  - Perform ablations: single model vs ensemble, different beta values, and different focus radii to justify choices.
+  - Evaluate on held‑out temporal folds: best‑so‑far vs queries, calibration (Brier, reliability plots), stability across seeds.
+  - Document final hyperparameters, Optuna study artifacts and checkpoints in experiments/; save summary plots under results/.
+
+- **Evaluation & deliverables**:
+  - Deliver a Results notebook reproducing final plots and metrics, an Experiments folder with configs + Optuna logs, and a short Results summary (one page) describing why the final pipeline was chosen.
+  - Include deployment notes: recommended surrogate per data regime, batch scoring cadence, compute/latency estimates and monitoring checklist (drift, calibration, KPI alarms).
+
+- **Next steps**: prepare a short demo notebook that runs one full BBO loop with the final pipeline and add a short section in README explaining when to prefer GP / SVR / NN depending on dimensionality and data volume.
+
 ### Machine Learning Methods:
 - **Gaussian Processes**: Used to model the unknown function and predict outputs based on prior observations.
 - **Acquisition Functions**: Guides the selection of new queries by balancing exploration and exploitation.
