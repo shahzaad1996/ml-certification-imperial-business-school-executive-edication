@@ -67,7 +67,7 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   - Query the black‑box at x_next, append to dataset, retrain surrogates, and log results (value, model used, uncertainty).
   - Save checkpoints, scalers and Optuna study results to experiments/ for reproducibility.
 
-### Seventh Submission — Results (suggested content)
+7. ### Seventh Submission — Results (suggested content)
 
 - Summary: run length = 7 queries per function; batch scoring used; mixed acquisition (UCB + EI); surrogates compared = GP / SVR ensemble / NN (MC‑dropout).
 
