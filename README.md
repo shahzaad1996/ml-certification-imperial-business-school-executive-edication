@@ -118,6 +118,35 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
 
 - **Next steps**: prepare a short demo notebook that runs one full BBO loop with the final pipeline and add a short section in README explaining when to prefer GP / SVR / NN depending on dimensionality and data volume.
 
+### Ninth Submission (Weeks 21+)
+
+- **Approach**: Use the fully assembled multi-surrogate pipeline established in submission 8 to generate and submit the next batch of query points across all eight functions. For each function, the three acquisition signals (GP-UCB, SVR-ensemble UCB, MLP-ensemble UCB) are compared and the point with the highest ensemble-consensus score is submitted. For signal-sparse functions (F1), the classification-based mixed acquisition (SVC probability + normalised predictive entropy) is run in parallel as a tie-breaker.
+
+- **Surrogate stack (no TensorFlow required — all sklearn)**:
+  - **GP** (`RBF + WhiteKernel`, `normalize_y=True`, 10 restarts) — primary surrogate for low-dim functions (F1–F4).
+  - **SVR bootstrap ensemble** (25 models, `RBF`, `C=10`, `epsilon=1e-3`) — robust mid-range baseline with empirical uncertainty via bootstrap variance.
+  - **MLP bootstrap ensemble** (50 models, `hidden=(64,64)`, `relu`, `max_iter=500`) — scalable surrogate replacing MC-Dropout; used as primary for high-dim functions (F7–F8).
+  - **Classification layer** (`LogisticRegression` + `SVC(probability=True)` + `MLPClassifier(32,16)`) — binary labels at 75th-percentile threshold; mixed acquisition = class probability + normalised predictive entropy.
+
+- **Acquisition strategy**:
+  - Low-dim (2D, F1–F2): GP-UCB with β = 30 (exploration-heavy) on a 100×100 grid; MLP-ensemble UCB with β = 6 on the same grid; SVR-ensemble UCB with β = 6.
+  - High-dim (8D, F7–F8): GP-UCB with κ = 10 over 50,000 random candidates.
+  - Final point selection: argmax of the ensemble-averaged UCB score across all three surrogates.
+
+- **Key findings from submission 8 data (used to inform submission 9 queries)**:
+  - **F1 (2D, radiation)**: Most observed outputs are near zero; the strongest signal observed was −0.00765 (wk13). The GP mean map and classification acquisition both point to the region around `[0.65, 0.68]` as the most informative next zone.
+  - **F8 (8D, hyperparameter tuning)**: Best observed output = **9.8948** at `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` (wk18). GP-UCB with κ = 10 over 50k candidates drives the next suggested point toward under-sampled high-uncertainty regions.
+
+- **Rationale**: With 20+ observations per function, the surrogates have sufficient data to reduce uncertainty in promising regions. Submission 9 shifts the balance slightly toward exploitation (lower β/κ on functions with a clear best candidate) while maintaining exploration on functions still showing flat or sparse signal.
+
+- **Next steps after submission 9**:
+  - Compare best-so-far curves across all 8 functions to identify which surrogates drove the most improvement.
+  - Plot GP mean ± σ heatmaps (2D) and pairwise scatter matrices coloured by score (8D) to visualise progress.
+  - Evaluate whether the MLP ensemble uncertainty is well-calibrated (compare predicted σ vs actual residuals).
+  - Prepare a final Results notebook consolidating all query histories, surrogate comparisons, and best observed values per function.
+
+---
+
 ### Machine Learning Methods:
 - **Gaussian Processes**: Used to model the unknown function and predict outputs based on prior observations.
 - **Acquisition Functions**: Guides the selection of new queries by balancing exploration and exploitation.
