@@ -1,5 +1,14 @@
 # BBO Capstone Project
 
+## Documentation
+
+| Document | Description |
+|---|---|
+| [DATASHEET.md](DATASHEET.md) | Dataset documentation following the Gebru et al. (2021) datasheets framework — motivation, composition, collection process, preprocessing, and distribution. |
+| [MODEL_CARD.md](MODEL_CARD.md) | Model card following Mitchell et al. (2019) — approach overview, intended use, nine-round strategy details, performance results, assumptions, limitations, and ethical considerations. |
+
+---
+
 ## Section 1: Project Overview
 The BBO (Black-Box Optimization) capstone project focuses on optimizing an unknown function using limited queries. The purpose of this project is to develop and refine strategies for efficiently exploring and exploiting the search space to achieve optimal results. 
 
