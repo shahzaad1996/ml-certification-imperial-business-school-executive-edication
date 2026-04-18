@@ -10,7 +10,7 @@
 |---|---|
 | **Name** | BBO Multi-Surrogate Optimisation Pipeline |
 | **Type** | Sequential Black-Box Optimisation (Bayesian Optimisation + ensemble surrogates) |
-| **Version** | v9 (final, after nine query rounds) |
+| **Version** | v10 (final, after ten query rounds — weeks 13–21) |
 | **Author** | Capstone student, Imperial Business School Executive Education |
 | **Language / stack** | Python 3.14 · scikit-learn · NumPy · Matplotlib · Seaborn |
 | **Repository** | See README for GitHub link |
@@ -27,12 +27,12 @@
 **Use cases to avoid:**
 - Functions with discrete or categorical inputs (the GP RBF kernel and UCB acquisition assume continuous, smooth spaces).
 - Problems where `d > 10` or `n_observations < 10` — the GP will be under-constrained and the MLP bootstrap ensemble will have very high variance.
-- Real-time or latency-sensitive applications: the SVR ensemble (25 models) and MLP ensemble (50 models) have non-trivial training times on large candidate grids.
+- Real-time or latency-sensitive applications: the SVR ensemble (25 models) and MLP ensemble (50 models) have non-trivial training times on large candidate grids (50,000 candidates for 8D).
 - Any safety-critical decisions without independent validation, regardless of surrogate performance metrics.
 
 ---
 
-## 3. Strategy Details Across Nine Rounds
+## 3. Strategy Details Across Ten Rounds
 
 ### Evolution of approach
 
@@ -44,6 +44,7 @@
 | 5–6 | GP + SVR + MLP bootstrap (50 models) | UCB + Expected Improvement | MLP ensemble added; TensorFlow replaced by `sklearn.neural_network.MLPRegressor` |
 | 7–8 | All three surrogates | Mixed UCB; classification layer (LR + SVC + `MLPClassifier`) for F1 | Classification acquisition added for signal-sparse functions |
 | 9 | All three, consensus vote | UCB with per-function β/κ schedule | β reduced on well-characterised functions; κ = 10 maintained on high-dim |
+| 10 | All three surrogates | Per-function κ/β (see table below) | Focus radius halved (0.01–0.015); step sizes prioritised over direction; final exploitation pass |
 
 ### Surrogate specifications (final)
 
@@ -70,28 +71,33 @@
 
 ### Candidate generation
 
-| Function dim | Candidate method | N candidates |
-|---|---|---|
-| 2D (F1–F2) | Regular 100×100 grid | 10,000 |
-| 3D–5D (F3–F6) | Random uniform | 5,000 |
-| 6D–8D (F7–F8) | Random uniform | 50,000 |
+| Function | Dim | Candidate method | N candidates | κ / β |
+|---|---|---|---|---|
+| F1 | 2D | Regular 100×100 grid | 10,000 | β = 6 (GP/SVR/MLP); entropy (classification) |
+| F2 | 2D | Regular 100×100 grid | 10,000 | κ = 3 |
+| F3 | 3D | Random uniform | 5,000 | κ = 30 (high exploration) |
+| F4 | 4D | Random uniform | 5,000 | κ = 3 |
+| F5 | 4D | Random uniform | 5,000 | κ = 4 |
+| F6 | 5D | Random uniform | 20,000 | κ = 4 |
+| F7 | 6D | Random uniform | 20,000 | κ = 3 |
+| F8 | 8D | Random uniform | 50,000 | κ = 10 |
 
 ---
 
 ## 4. Performance
 
-### Best observed outputs per function (after 9 rounds)
+### Best observed outputs per function (after 10 rounds, weeks 13–21)
 
-| Function | Scenario | Best output observed | Input at best |
-|---|---|---|---|
-| F1 | 2D radiation detection | −0.00765 | `[0.6465, 0.6768]` (wk13) |
-| F2 | 2D signal field | 0.611 (initial) → improved | see notebook |
-| F3 | 3D unknown | −0.035 (initial best retained) | see notebook |
-| F4 | 4D unknown | −4.026 (initial best retained) | see notebook |
-| F5 | 4D chemical yield | **6117.3** | `[0.886, 0.998, 0.960, 0.993]` (wk15) |
-| F6 | 5D unknown | −0.714 (initial best retained) | see notebook |
-| F7 | 6D unknown | 1.365 (initial best retained) | see notebook |
-| F8 | 8D hyperparameter tuning | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` (wk18) |
+| Function | Scenario | Best output | Best input | Best week |
+|---|---|---|---|---|
+| F1 | 2D contamination detection | −0.00765 | `[0.646, 0.677]` | wk13 |
+| F2 | 2D noisy log-likelihood | **0.697** | `[0.859, 0.343]` | wk20 |
+| F3 | 3D drug compound minimisation | **−0.056** | `[0.448, 0.218, 0.560]` | wk13 |
+| F4 | 4D warehouse tuning | **0.303** | `[0.404, 0.434, 0.436, 0.384]` | wk20 |
+| F5 | 4D chemical yield | **6117.3** | `[0.886, 0.998, 0.960, 0.993]` | wk15 |
+| F6 | 5D cake recipe | **−0.337** | `[0.399, 0.372, 0.622, 0.993, 0.189]` | wk17 |
+| F7 | 6D ML hyperparameters | **2.791** | `[0.022, 0.239, 0.465, 0.283, 0.347, 0.636]` | wk20 |
+| F8 | 8D black-box optimisation | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` | wk18 |
 
 ### Metrics used
 - **Primary**: best-observed output value `y*` after each round (best-so-far curve).
@@ -100,9 +106,14 @@
 - No held-out test set is used (the black-box is the ground truth; no labels exist for unqueried points).
 
 ### Observed patterns
-- **F5**: Steady improvement across rounds driven by GP-UCB; best output grew from ~1089 (initial) to 6117 (wk15), confirming the unimodal peak in the high-end region of all four inputs.
-- **F8**: GP-UCB with κ = 10 over 50,000 candidates produced consistent outputs in the range 7.3–9.9, confirming the surrogate is identifying productive 8D subspaces.
-- **F1**: Diminishing returns after wk13; outputs collapsed to ~0 by wk19–20, indicating the non-zero support is very localised. Classification acquisition now used to re-localise the source.
+- **F1 (2D, contamination)**: Signal is extremely localised. Outputs from wk16 onward are indistinguishable from zero (range 1e-53 to 3.38e-96). The strongest signal (−0.00765 at wk13) was never surpassed despite multiple surrogate approaches (GP, SVR ensemble, MLP ensemble, classification with predictive entropy). The non-zero support of this function is very narrow.
+- **F2 (2D, log-likelihood)**: Progressive improvement across rounds; wk20 achieved 0.697 at `[0.859, 0.343]`. Next GP-UCB suggestion is very close to best (`[0.869, 0.303]`), indicating convergence. Outputs are variable but the algorithm identified a productive region.
+- **F3 (3D, drug compounds)**: Best result (−0.056) found in the first student query (wk13). Subsequent exploration worsened results, with wk20 producing −0.248. Lower Compound B values correlate with less-negative outputs.
+- **F4 (4D, warehouse)**: Massive volatility (−33.24 to +0.303). Sharp landscape cliffs make the GP overconfident. Safe region identified around [0.35–0.45] across all four parameters; boundary exploration (wk14–16) caused severe regressions.
+- **F5 (4D, chemical yield)**: Unimodal peak confirmed in the upper corner of the hypercube. Best output grew from ~1089 (initial) to 6117 (wk15), confirming the peak at [0.88–1.0]⁴. Exploratory probes to low values (wk18: 171; wk20: 103) were catastrophic but informative.
+- **F6 (5D, cake recipe)**: Consistently negative outputs with no clear improvement trajectory. Best at −0.337 (wk17) requires high butter (~0.99), moderate eggs (~0.62), low milk (~0.19). Extreme ingredient values (wk21: flour=0.89, butter=0.003) produce the worst results (−2.75).
+- **F7 (6D, ML hyperparameters)**: Strong improvement from wk19 onward (outputs 2.3–2.8 vs 0.27–1.8 in wk13–18). Best at wk20 (2.791) with very low HP1 (~0.02) and moderate other parameters. Algorithm converging to a productive 6D subspace.
+- **F8 (8D, black-box)**: GP-UCB with κ = 10 over 50,000 candidates produced the overall peak (9.895) at wk18. Parameters 5 (0.951) and 8 (0.914) appear to dominate the output. Post-peak exploration (wk19–21: 7.3–8.4) confirmed the wk18 region is competitive but could not surpass it.
 
 ---
 
@@ -116,11 +127,13 @@
 5. **Uniform candidate grid**: For high-dim functions (F7–F8), candidates are uniform random draws. If the true optimum is in a very small region, it may not be sampled as a candidate and will be missed.
 
 ### Limitations and failure modes
-- **Small dataset size**: With 10–50 observations, bootstrap ensemble variance estimates are noisy. The GP is the most reliable uncertainty model at this scale.
+- **Small dataset size**: With 19–49 observations, bootstrap ensemble variance estimates are noisy. The GP is the most reliable uncertainty model at this scale.
+- **Isotropic RBF kernel**: The isotropic kernel assumes all input dimensions are equally important. For F8, parameters 5 and 8 appear to dominate the output; an ARD (Automatic Relevance Determination) kernel would learn per-dimension length scales and direct exploration more efficiently.
 - **No batch acquisition**: One point is submitted per round per function. Batch BO (selecting multiple non-redundant points simultaneously) would be more efficient.
 - **Bootstrap ≠ Bayesian uncertainty**: The SVR and MLP ensemble standard deviations are frequentist approximations, not calibrated posterior estimates. They may over- or under-estimate true uncertainty.
 - **Python 3.14 incompatibility**: TensorFlow / Keras could not be used. The MLP bootstrap ensemble is a functional replacement but does not support true MC-Dropout inference.
 - **No Optuna / hyperparameter tuning**: Surrogate hyperparameters (C, hidden layer size, β/κ) were set manually. Automated tuning would likely improve acquisition quality.
+- **Overconfident GP on sharp landscapes**: F4's volatility (−33.24 to +0.303) demonstrates that the GP's smoothness assumption can be severely violated, leading to overconfident acquisition scores near landscape cliffs.
 
 ---
 

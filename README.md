@@ -5,7 +5,7 @@
 | Document | Description |
 |---|---|
 | [DATASHEET.md](DATASHEET.md) | Dataset documentation following the Gebru et al. (2021) datasheets framework — motivation, composition, collection process, preprocessing, and distribution. |
-| [MODEL_CARD.md](MODEL_CARD.md) | Model card following Mitchell et al. (2019) — approach overview, intended use, nine-round strategy details, performance results, assumptions, limitations, and ethical considerations. |
+| [MODEL_CARD.md](MODEL_CARD.md) | Model card following Mitchell et al. (2019) — approach overview, intended use, ten-round strategy details, performance results, assumptions, limitations, and ethical considerations. |
 
 ---
 
@@ -153,6 +153,58 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   - Plot GP mean ± σ heatmaps (2D) and pairwise scatter matrices coloured by score (8D) to visualise progress.
   - Evaluate whether the MLP ensemble uncertainty is well-calibrated (compare predicted σ vs actual residuals).
   - Prepare a final Results notebook consolidating all query histories, surrogate comparisons, and best observed values per function.
+
+### Tenth Submission (Week 21) — Final Results
+
+- **Approach**: This round was defined by a single lesson from round nine: step sizes matter more than direction. Conservative near-repeats consistently outperformed bold gradient-following perturbations. The focus radius was halved on every surrogate-driven function (from 0.025–0.04 to 0.01–0.015), and per-function acquisition parameters were tuned based on nine rounds of accumulated evidence.
+
+- **Surrogate stack (unchanged from submission 9 — all sklearn, no TensorFlow)**:
+  - **GP** (`RBF + WhiteKernel`, `normalize_y=True`, 10 restarts) — primary surrogate for all functions.
+  - **SVR bootstrap ensemble** (25 models, `RBF`, `C=10`, `epsilon=1e-3`) — robust baseline with empirical uncertainty (F1).
+  - **MLP bootstrap ensemble** (50 models, `hidden=(64,64)`, `relu`, `max_iter=500`) — scalable surrogate (F1).
+  - **Classification layer** (`LogisticRegression` + `SVC(probability=True)` + `MLPClassifier(32,16)`) — entropy-based acquisition for signal-sparse F1.
+
+- **Per-function acquisition strategy (final)**:
+
+  | Function | Dim | κ / β | Candidates | Method |
+  |---|---|---|---|---|
+  | F1 | 2D | β = 6 (GP, SVR, MLP); entropy (classification) | 100×100 grid | Multi-surrogate + classification |
+  | F2 | 2D | κ = 3 | 100×100 grid | GP-UCB |
+  | F3 | 3D | κ = 30 | 5,000 random | GP-UCB (high exploration) |
+  | F4 | 4D | κ = 3 | 5,000 random | GP-UCB |
+  | F5 | 4D | κ = 4 | 5,000 random | GP-UCB |
+  | F6 | 5D | κ = 4 | 20,000 random | GP-UCB |
+  | F7 | 6D | κ = 3 | 20,000 random | GP-UCB |
+  | F8 | 8D | κ = 10 | 50,000 random | GP-UCB (aggressive exploration) |
+
+- **Final best outputs per function (after all 10 rounds, wk13–wk21)**:
+
+  | Function | Scenario | Best output | Best input | Best week |
+  |---|---|---|---|---|
+  | F1 | 2D contamination detection | −0.00765 | `[0.646, 0.677]` | wk13 |
+  | F2 | 2D noisy log-likelihood | **0.697** | `[0.859, 0.343]` | wk20 |
+  | F3 | 3D drug compound minimisation | **−0.056** | `[0.448, 0.218, 0.560]` | wk13 |
+  | F4 | 4D warehouse tuning | **0.303** | `[0.404, 0.434, 0.436, 0.384]` | wk20 |
+  | F5 | 4D chemical yield | **6117.3** | `[0.886, 0.998, 0.960, 0.993]` | wk15 |
+  | F6 | 5D cake recipe | **−0.337** | `[0.399, 0.372, 0.622, 0.993, 0.189]` | wk17 |
+  | F7 | 6D ML hyperparameters | **2.791** | `[0.022, 0.239, 0.465, 0.283, 0.347, 0.636]` | wk20 |
+  | F8 | 8D black-box | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` | wk18 |
+
+- **Key findings across all ten rounds**:
+  - **F1 (2D, radiation)**: Signal is extremely localised. Outputs collapsed to effectively zero from wk16 onward (values in the range 1e-53 to 3.38e-96). The strongest reading (−0.00765 at wk13) was never surpassed. Multiple surrogate approaches (GP, SVR ensemble, MLP ensemble, classification with entropy) all point to the `[0.65, 0.68]` region.
+  - **F2 (2D, log-likelihood)**: Steady improvement culminating in 0.697 at wk20. Next suggested point `[0.869, 0.303]` is very close to best, indicating convergence to a local optimum.
+  - **F3 (3D, drug compounds)**: Best output (−0.056) was found in the first student query (wk13). Subsequent exploration failed to improve it, with wk20 producing the worst result (−0.248). Low Compound B (~0.002–0.22) appears critical.
+  - **F4 (4D, warehouse)**: Extreme volatility — outputs ranged from −33.24 (wk16) to +0.303 (wk20). The landscape has sharp cliffs; safe parameter region is approximately [0.35–0.45] across all dimensions.
+  - **F5 (4D, chemical yield)**: Unimodal peak confirmed in the high-parameter corner. All parameters near [0.88–1.0] yield outputs >5000. Exploratory probes to low values (wk18, wk20) caused catastrophic drops to 103–171.
+  - **F6 (5D, cake recipe)**: Consistently negative outputs with best at −0.337 (wk17). High butter (~0.99), moderate eggs (~0.62), low milk (~0.19) appear optimal. Extreme parameter values (wk21) cause severe degradation (−2.75).
+  - **F7 (6D, ML hyperparameters)**: Strong improvement trajectory from wk19–wk21 (outputs 2.3–2.8). Best at wk20 (2.791) with low HP1 (~0.02), moderate HP2–HP6. Suggests convergence to a productive 6D subspace.
+  - **F8 (8D, black-box)**: Peak at wk18 (9.895) with high P5 (0.951) and P8 (0.914) — these two parameters appear to dominate the output. Post-peak exploration (wk19–wk21) dropped to 7.3–8.4 but confirmed the wk18 region is competitive.
+
+- **Lessons learned**:
+  - Step sizes matter more than direction: conservative near-repeats consistently outperformed bold gradient-following perturbations across all functions.
+  - Higher dimensions demand more candidates (50k for 8D) and higher κ (exploration), while lower dimensions benefit from grid-based exploitation.
+  - The GP surrogate with RBF kernel performed reliably for all dimensionalities when paired with appropriate κ scheduling. Ensemble surrogates (SVR, MLP) added value primarily for uncertainty quantification on signal-sparse functions (F1).
+  - Exploratory probes into untested regions carried high downside risk (F4: −33.24; F5: 103; F6: −2.75) but were essential for identifying landscape boundaries.
 
 ---
 
