@@ -10,7 +10,7 @@
 |---|---|
 | **Name** | BBO Multi-Surrogate Optimisation Pipeline |
 | **Type** | Sequential Black-Box Optimisation (Bayesian Optimisation + ensemble surrogates) |
-| **Version** | v10 (final, after ten query rounds — weeks 13–21) |
+| **Version** | v11 (after ten query rounds — weeks 13–22) |
 | **Author** | Capstone student, Imperial Business School Executive Education |
 | **Language / stack** | Python 3.14 · scikit-learn · NumPy · Matplotlib · Seaborn |
 | **Repository** | See README for GitHub link |
@@ -44,7 +44,8 @@
 | 5–6 | GP + SVR + MLP bootstrap (50 models) | UCB + Expected Improvement | MLP ensemble added; TensorFlow replaced by `sklearn.neural_network.MLPRegressor` |
 | 7–8 | All three surrogates | Mixed UCB; classification layer (LR + SVC + `MLPClassifier`) for F1 | Classification acquisition added for signal-sparse functions |
 | 9 | All three, consensus vote | UCB with per-function β/κ schedule | β reduced on well-characterised functions; κ = 10 maintained on high-dim |
-| 10 | All three surrogates | Per-function κ/β (see table below) | Focus radius halved (0.01–0.015); step sizes prioritised over direction; final exploitation pass |
+| 10 | All three surrogates | Per-function κ/β (see table below) | Focus radius halved (0.01–0.015); step sizes prioritised over direction; exploitation pass |
+| 11 | All three surrogates | Per-function κ/β (unchanged) | Clustering-informed refinement: queries target identified cluster centroids and extend trajectories; wk22 data appended |
 
 ### Surrogate specifications (final)
 
@@ -86,18 +87,18 @@
 
 ## 4. Performance
 
-### Best observed outputs per function (after 10 rounds, weeks 13–21)
+### Best observed outputs per function (after 10 rounds, weeks 13–22)
 
-| Function | Scenario | Best output | Best input | Best week |
-|---|---|---|---|---|
-| F1 | 2D contamination detection | −0.00765 | `[0.646, 0.677]` | wk13 |
-| F2 | 2D noisy log-likelihood | **0.697** | `[0.859, 0.343]` | wk20 |
-| F3 | 3D drug compound minimisation | **−0.056** | `[0.448, 0.218, 0.560]` | wk13 |
-| F4 | 4D warehouse tuning | **0.303** | `[0.404, 0.434, 0.436, 0.384]` | wk20 |
-| F5 | 4D chemical yield | **6117.3** | `[0.886, 0.998, 0.960, 0.993]` | wk15 |
-| F6 | 5D cake recipe | **−0.337** | `[0.399, 0.372, 0.622, 0.993, 0.189]` | wk17 |
-| F7 | 6D ML hyperparameters | **2.791** | `[0.022, 0.239, 0.465, 0.283, 0.347, 0.636]` | wk20 |
-| F8 | 8D black-box optimisation | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` | wk18 |
+| Function | Scenario | Best output | Best input | Best week | wk22 output |
+|---|---|---|---|---|---|
+| F1 | 2D contamination detection | −0.00765 | `[0.646, 0.677]` | wk13 | 0.0 |
+| F2 | 2D noisy log-likelihood | **0.697** | `[0.859, 0.343]` | wk20 | 0.503 |
+| F3 | 3D drug compound minimisation | **−0.056** | `[0.448, 0.218, 0.560]` | wk13 | −0.128 |
+| F4 | 4D warehouse tuning | **0.303** | `[0.404, 0.434, 0.436, 0.384]` | wk20 | 0.153 |
+| F5 | 4D chemical yield | **6117.3** | `[0.886, 0.998, 0.960, 0.993]` | wk15 | 5392.4 |
+| F6 | 5D cake recipe | **−0.337** | `[0.399, 0.372, 0.622, 0.993, 0.189]` | wk17 | −2.185 |
+| F7 | 6D ML hyperparameters | **2.791** | `[0.022, 0.239, 0.465, 0.283, 0.347, 0.636]` | wk20 | 2.652 |
+| F8 | 8D black-box optimisation | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` | wk18 | 9.384 |
 
 ### Metrics used
 - **Primary**: best-observed output value `y*` after each round (best-so-far curve).
@@ -106,14 +107,14 @@
 - No held-out test set is used (the black-box is the ground truth; no labels exist for unqueried points).
 
 ### Observed patterns
-- **F1 (2D, contamination)**: Signal is extremely localised. Outputs from wk16 onward are indistinguishable from zero (range 1e-53 to 3.38e-96). The strongest signal (−0.00765 at wk13) was never surpassed despite multiple surrogate approaches (GP, SVR ensemble, MLP ensemble, classification with predictive entropy). The non-zero support of this function is very narrow.
-- **F2 (2D, log-likelihood)**: Progressive improvement across rounds; wk20 achieved 0.697 at `[0.859, 0.343]`. Next GP-UCB suggestion is very close to best (`[0.869, 0.303]`), indicating convergence. Outputs are variable but the algorithm identified a productive region.
-- **F3 (3D, drug compounds)**: Best result (−0.056) found in the first student query (wk13). Subsequent exploration worsened results, with wk20 producing −0.248. Lower Compound B values correlate with less-negative outputs.
-- **F4 (4D, warehouse)**: Massive volatility (−33.24 to +0.303). Sharp landscape cliffs make the GP overconfident. Safe region identified around [0.35–0.45] across all four parameters; boundary exploration (wk14–16) caused severe regressions.
-- **F5 (4D, chemical yield)**: Unimodal peak confirmed in the upper corner of the hypercube. Best output grew from ~1089 (initial) to 6117 (wk15), confirming the peak at [0.88–1.0]⁴. Exploratory probes to low values (wk18: 171; wk20: 103) were catastrophic but informative.
-- **F6 (5D, cake recipe)**: Consistently negative outputs with no clear improvement trajectory. Best at −0.337 (wk17) requires high butter (~0.99), moderate eggs (~0.62), low milk (~0.19). Extreme ingredient values (wk21: flour=0.89, butter=0.003) produce the worst results (−2.75).
-- **F7 (6D, ML hyperparameters)**: Strong improvement from wk19 onward (outputs 2.3–2.8 vs 0.27–1.8 in wk13–18). Best at wk20 (2.791) with very low HP1 (~0.02) and moderate other parameters. Algorithm converging to a productive 6D subspace.
-- **F8 (8D, black-box)**: GP-UCB with κ = 10 over 50,000 candidates produced the overall peak (9.895) at wk18. Parameters 5 (0.951) and 8 (0.914) appear to dominate the output. Post-peak exploration (wk19–21: 7.3–8.4) confirmed the wk18 region is competitive but could not surpass it.
+- **F1 (2D, contamination)**: Signal is extremely localised. Outputs from wk16 onward are indistinguishable from zero (range 1e-53 to exactly 0). The wk22 corner probe `[1.0, 1.0]` returned zero, confirming the non-zero support is very narrow around `[0.65, 0.68]`. The strongest signal (−0.00765 at wk13) was never surpassed despite multiple surrogate approaches.
+- **F2 (2D, log-likelihood)**: Progressive improvement across rounds; wk20 achieved 0.697 at `[0.859, 0.343]`. The wk22 query `[0.869, 0.303]` returned 0.503, staying on the identified ridge but below the peak — confirming convergence to a productive band along high x1 values.
+- **F3 (3D, drug compounds)**: Best result (−0.056) found in the first student query (wk13). The wk22 high-A, low-B+C probe returned −0.128, confirming that low Compound B is necessary but the optimal mix also requires moderate Compound C (~0.56).
+- **F4 (4D, warehouse)**: Massive volatility (−33.24 to +0.303). The wk22 query `[0.391, 0.392, 0.339, 0.408]` returned 0.153, staying positive within the tight safe cluster. Sharp landscape cliffs make any deviation beyond ±0.05 extremely risky.
+- **F5 (4D, chemical yield)**: Unimodal peak confirmed in the upper corner. Best output grew from ~1089 (initial) to 6117 (wk15). The wk22 query returned 5392 — strong but not a new best, suggesting sensitivity to the exact position within the [0.88–1.0]⁴ cluster.
+- **F6 (5D, cake recipe)**: Best at −0.337 (wk17) with high butter (~0.99), moderate eggs (~0.62), low milk (~0.19). The wk22 probe with high milk (0.975) returned −2.185, confirming milk is a strong negative driver that should be kept below 0.2.
+- **F7 (6D, ML hyperparameters)**: Strong improvement trajectory from wk19–wk22 (outputs 2.34→2.57→2.79→2.65). Best at wk20 (2.791) with very low HP1 (~0.02). The wk22 result (2.652, second-best) confirms the cluster direction and suggests the productive subspace is approximately `[0.02–0.15, 0.15–0.24, 0.33–0.47, 0.28–0.41, 0.21–0.35, 0.64–0.72]`.
+- **F8 (8D, black-box)**: Peak at wk18 (9.895) with high P5 (0.951) and P8 (0.914). The wk22 query returned 9.384 (third-best) with high P8 (0.927) but low P5 (0.086), suggesting P8 alone may be a strong driver. Post-peak exploration across wk19–wk22 (7.3–9.4) confirmed the wk18 region is competitive.
 
 ---
 

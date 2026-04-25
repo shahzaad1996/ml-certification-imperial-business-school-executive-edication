@@ -154,7 +154,7 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   - Evaluate whether the MLP ensemble uncertainty is well-calibrated (compare predicted σ vs actual residuals).
   - Prepare a final Results notebook consolidating all query histories, surrogate comparisons, and best observed values per function.
 
-### Tenth Submission (Week 21) — Final Results
+### Tenth Submission (Week 21)
 
 - **Approach**: This round was defined by a single lesson from round nine: step sizes matter more than direction. Conservative near-repeats consistently outperformed bold gradient-following perturbations. The focus radius was halved on every surrogate-driven function (from 0.025–0.04 to 0.01–0.015), and per-function acquisition parameters were tuned based on nine rounds of accumulated evidence.
 
@@ -164,7 +164,7 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   - **MLP bootstrap ensemble** (50 models, `hidden=(64,64)`, `relu`, `max_iter=500`) — scalable surrogate (F1).
   - **Classification layer** (`LogisticRegression` + `SVC(probability=True)` + `MLPClassifier(32,16)`) — entropy-based acquisition for signal-sparse F1.
 
-- **Per-function acquisition strategy (final)**:
+- **Per-function acquisition strategy**:
 
   | Function | Dim | κ / β | Candidates | Method |
   |---|---|---|---|---|
@@ -177,7 +177,30 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   | F7 | 6D | κ = 3 | 20,000 random | GP-UCB |
   | F8 | 8D | κ = 10 | 50,000 random | GP-UCB (aggressive exploration) |
 
-- **Final best outputs per function (after all 10 rounds, wk13–wk21)**:
+### Eleventh Submission (Week 22) — Clustering-Informed Refinement
+
+- **Approach**: This round viewed the accumulated search space through a clustering lens — identifying natural groupings in past queries, measuring inter-cluster distances, and using centroid trends to guide queries. The goal was to tighten exploration around high-performing clusters while avoiding the noise regions that earlier rounds had already ruled out. Each query targets a specific local cluster, guided by the GP-UCB acquisition function with kappa values tuned per function based on cluster spread.
+
+- **Surrogate stack (unchanged from submission 10 — all sklearn, no TensorFlow)**:
+  - **GP** (`RBF + WhiteKernel`, `normalize_y=True`, 10 restarts) — primary surrogate for all functions.
+  - **SVR bootstrap ensemble** (25 models, `RBF`, `C=10`, `epsilon=1e-3`) — robust baseline with empirical uncertainty (F1).
+  - **MLP bootstrap ensemble** (50 models, `hidden=(64,64)`, `relu`, `max_iter=500`) — scalable surrogate (F1).
+  - **Classification layer** (`LogisticRegression` + `SVC(probability=True)` + `MLPClassifier(32,16)`) — entropy-based acquisition for signal-sparse F1.
+
+- **Per-function query rationale (wk22)**:
+
+  | Function | wk22 input | wk22 output | Cluster / strategy |
+  |---|---|---|---|
+  | F1 | `[1.000000, 1.000000]` | 0.0 | Random corner probe — no signal detected in 9 prior rounds; maximise coverage in untested extremes |
+  | F2 | `[0.868686, 0.303030]` | 0.503 | On the high-x1 ridge near best (wk20: 0.697); tightening along the identified band |
+  | F3 | `[0.979416, 0.018415, 0.044478]` | −0.128 | High A, low B+C corner — testing if the best-region (low B) extends to extreme values |
+  | F4 | `[0.390608, 0.391840, 0.339213, 0.408180]` | 0.153 | Inside the tight [0.35–0.45] cluster centroid; radius ~0.01 from the best (wk20: 0.303) |
+  | F5 | `[0.943487, 0.987941, 0.947113, 0.913539]` | 5392.4 | Upper-corner cluster exploitation; all params >0.91, near the peak zone |
+  | F6 | `[0.201604, 0.945689, 0.965562, 0.984333, 0.974845]` | −2.185 | Exploratory probe with high sugar+eggs+butter+milk — confirmed that high milk (0.97) degrades performance |
+  | F7 | `[0.149979, 0.153680, 0.445210, 0.316094, 0.205053, 0.716571]` | 2.652 | Extending the improving trajectory (wk19–21: 2.34→2.57→2.79); second-best output confirms the cluster direction |
+  | F8 | `[0.268584, 0.149940, 0.020668, 0.001506, 0.086266, 0.040657, 0.088428, 0.926627]` | 9.384 | Exploring low-param region variant; high P8 (0.927) retained from the best cluster; third-best overall |
+
+- **Final best outputs per function (after all 10 rounds, wk13–wk22)**:
 
   | Function | Scenario | Best output | Best input | Best week |
   |---|---|---|---|---|
@@ -190,17 +213,17 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   | F7 | 6D ML hyperparameters | **2.791** | `[0.022, 0.239, 0.465, 0.283, 0.347, 0.636]` | wk20 |
   | F8 | 8D black-box | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` | wk18 |
 
-- **Key findings across all ten rounds**:
-  - **F1 (2D, radiation)**: Signal is extremely localised. Outputs collapsed to effectively zero from wk16 onward (values in the range 1e-53 to 3.38e-96). The strongest reading (−0.00765 at wk13) was never surpassed. Multiple surrogate approaches (GP, SVR ensemble, MLP ensemble, classification with entropy) all point to the `[0.65, 0.68]` region.
-  - **F2 (2D, log-likelihood)**: Steady improvement culminating in 0.697 at wk20. Next suggested point `[0.869, 0.303]` is very close to best, indicating convergence to a local optimum.
-  - **F3 (3D, drug compounds)**: Best output (−0.056) was found in the first student query (wk13). Subsequent exploration failed to improve it, with wk20 producing the worst result (−0.248). Low Compound B (~0.002–0.22) appears critical.
-  - **F4 (4D, warehouse)**: Extreme volatility — outputs ranged from −33.24 (wk16) to +0.303 (wk20). The landscape has sharp cliffs; safe parameter region is approximately [0.35–0.45] across all dimensions.
-  - **F5 (4D, chemical yield)**: Unimodal peak confirmed in the high-parameter corner. All parameters near [0.88–1.0] yield outputs >5000. Exploratory probes to low values (wk18, wk20) caused catastrophic drops to 103–171.
-  - **F6 (5D, cake recipe)**: Consistently negative outputs with best at −0.337 (wk17). High butter (~0.99), moderate eggs (~0.62), low milk (~0.19) appear optimal. Extreme parameter values (wk21) cause severe degradation (−2.75).
-  - **F7 (6D, ML hyperparameters)**: Strong improvement trajectory from wk19–wk21 (outputs 2.3–2.8). Best at wk20 (2.791) with low HP1 (~0.02), moderate HP2–HP6. Suggests convergence to a productive 6D subspace.
-  - **F8 (8D, black-box)**: Peak at wk18 (9.895) with high P5 (0.951) and P8 (0.914) — these two parameters appear to dominate the output. Post-peak exploration (wk19–wk21) dropped to 7.3–8.4 but confirmed the wk18 region is competitive.
+- **Key findings across all ten rounds (wk13–wk22)**:
+  - **F1 (2D, radiation)**: Signal is extremely localised. Outputs collapsed to effectively zero from wk16 onward (values in the range 1e-53 to 0). The strongest reading (−0.00765 at wk13) was never surpassed. The wk22 corner probe `[1.0, 1.0]` returned exactly zero, confirming the non-zero support of this function is very narrow around `[0.65, 0.68]`.
+  - **F2 (2D, log-likelihood)**: Steady improvement culminating in 0.697 at wk20. The wk22 query `[0.869, 0.303]` returned 0.503 — on the productive ridge but slightly below the peak, confirming the ridge structure without surpassing the best.
+  - **F3 (3D, drug compounds)**: Best output (−0.056) was found in the first student query (wk13). Subsequent exploration failed to improve it. The wk22 probe into the high-A, low-B+C corner returned −0.128, further confirming that low Compound B (~0.002–0.22) is critical but the optimal mix also requires moderate Compound C.
+  - **F4 (4D, warehouse)**: Extreme volatility — outputs ranged from −33.24 (wk16) to +0.303 (wk20). The wk22 query `[0.391, 0.392, 0.339, 0.408]` returned 0.153, staying positive within the tight safe cluster around [0.35–0.45] but not improving on the best. The landscape has razor-sharp cliffs.
+  - **F5 (4D, chemical yield)**: Unimodal peak confirmed in the upper corner. All parameters near [0.88–1.0] yield outputs >5000. The wk22 query `[0.943, 0.988, 0.947, 0.914]` returned 5392 — strong but below the peak (6117 at wk15), suggesting the function is sensitive to the exact position within the upper-corner cluster.
+  - **F6 (5D, cake recipe)**: Consistently negative outputs with best at −0.337 (wk17). High butter (~0.99), moderate eggs (~0.62), low milk (~0.19) appear optimal. The wk22 exploratory probe with high milk (0.975) returned −2.185, confirming milk is a strong negative driver.
+  - **F7 (6D, ML hyperparameters)**: Strong improvement trajectory from wk19–wk22 (outputs 2.34→2.57→2.79→2.65). Best at wk20 (2.791) with low HP1 (~0.02), moderate HP2–HP6. The wk22 query (2.652) was the second-best overall, confirming the cluster direction while suggesting the peak may be near `[0.02–0.15, 0.15–0.24, 0.33–0.47, 0.28–0.41, 0.21–0.35, 0.64–0.72]`.
+  - **F8 (8D, black-box)**: Peak at wk18 (9.895) with high P5 (0.951) and P8 (0.914) — these two parameters appear to dominate the output. The wk22 query returned 9.384 (third-best overall) with high P8 (0.927) but low P5 (0.086), suggesting P8 alone may be a strong driver. Post-peak exploration across wk19–wk22 (7.3–9.4) confirmed the wk18 region is competitive but not yet surpassed.
 
-- **Lessons learned**:
+- **Lessons learned (accumulated across all 10 rounds)**:
   - Step sizes matter more than direction: conservative near-repeats consistently outperformed bold gradient-following perturbations across all functions.
   - Higher dimensions demand more candidates (50k for 8D) and higher κ (exploration), while lower dimensions benefit from grid-based exploitation.
   - The GP surrogate with RBF kernel performed reliably for all dimensionalities when paired with appropriate κ scheduling. Ensemble surrogates (SVR, MLP) added value primarily for uncertainty quantification on signal-sparse functions (F1).
