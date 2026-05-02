@@ -10,7 +10,7 @@
 |---|---|
 | **Name** | BBO Multi-Surrogate Optimisation Pipeline |
 | **Type** | Sequential Black-Box Optimisation (Bayesian Optimisation + ensemble surrogates) |
-| **Version** | v12 (after eleven query rounds — weeks 13–23) |
+| **Version** | v13 (after twelve query rounds — weeks 13–24) |
 | **Author** | Capstone student, Imperial Business School Executive Education |
 | **Language / stack** | Python 3.14 · scikit-learn · NumPy · Matplotlib · Seaborn |
 | **Repository** | See README for GitHub link |
@@ -47,6 +47,7 @@
 | 10 | All three surrogates | Per-function κ/β (see table below) | Focus radius halved (0.01–0.015); step sizes prioritised over direction; exploitation pass |
 | 11 | All three surrogates | Per-function κ/β (unchanged) | Clustering-informed refinement: queries target identified cluster centroids and extend trajectories; wk22 data appended |
 | 12 | All three surrogates | Per-function κ/β (F4: κ=4, F5: κ=8; others unchanged) | Boundary probing and validation: systematic edge-of-region probes, reproducibility re-query (F7), increased κ on key functions; wk23 data appended |
+| 13 | All three surrogates | Per-function κ/β (unchanged from round 12) | Exploitation refinement + extremes testing: targeted exploitation near F7 optimum (**new best 2.908**), extreme-parameter probes on F3/F5/F6/F8; wk24 data appended |
 
 ### Surrogate specifications (final)
 
@@ -88,18 +89,18 @@
 
 ## 4. Performance
 
-### Best observed outputs per function (after 11 rounds, weeks 13–23)
+### Best observed outputs per function (after 12 rounds, weeks 13–24)
 
-| Function | Scenario | Best output | Best input | Best week | wk23 output |
+| Function | Scenario | Best output | Best input | Best week | wk24 output |
 |---|---|---|---|---|---|
-| F1 | 2D contamination detection | −0.00765 | `[0.646, 0.677]` | wk13 | −8.17e-5 |
-| F2 | 2D noisy log-likelihood | **0.697** | `[0.859, 0.343]` | wk20 | −0.053 |
-| F3 | 3D drug compound minimisation | **−0.056** | `[0.448, 0.218, 0.560]` | wk13 | −0.077 |
-| F4 | 4D warehouse tuning | **0.303** | `[0.404, 0.434, 0.436, 0.384]` | wk20 | −0.077 |
-| F5 | 4D chemical yield | **6117.3** | `[0.886, 0.998, 0.960, 0.993]` | wk15 | 163.0 |
-| F6 | 5D cake recipe | **−0.337** | `[0.399, 0.372, 0.622, 0.993, 0.189]` | wk17 | −1.120 |
-| F7 | 6D ML hyperparameters | **2.791** | `[0.022, 0.239, 0.465, 0.283, 0.347, 0.636]` | wk20 | 2.652 |
-| F8 | 8D black-box optimisation | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` | wk18 | 9.315 |
+| F1 | 2D contamination detection | −0.00765 | `[0.646, 0.677]` | wk13 | 0 |
+| F2 | 2D noisy log-likelihood | **0.697** | `[0.859, 0.343]` | wk20 | 0.102 |
+| F3 | 3D drug compound minimisation | **−0.056** | `[0.448, 0.218, 0.560]` | wk13 | −0.508 |
+| F4 | 4D warehouse tuning | **0.303** | `[0.404, 0.434, 0.436, 0.384]` | wk20 | −0.163 |
+| F5 | 4D chemical yield | **6117.3** | `[0.886, 0.998, 0.960, 0.993]` | wk15 | 2640 |
+| F6 | 5D cake recipe | **−0.337** | `[0.399, 0.372, 0.622, 0.993, 0.189]` | wk17 | −2.526 |
+| F7 | 6D ML hyperparameters | **2.908** | `[0.219, 0.221, 0.481, 0.355, 0.355, 0.597]` | wk24 | **2.908** |
+| F8 | 8D black-box optimisation | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` | wk18 | 7.025 |
 
 ### Metrics used
 - **Primary**: best-observed output value `y*` after each round (best-so-far curve).
@@ -108,14 +109,14 @@
 - No held-out test set is used (the black-box is the ground truth; no labels exist for unqueried points).
 
 ### Observed patterns
-- **F1 (2D, contamination)**: Signal is extremely localised. Outputs from wk16–wk22 were indistinguishable from zero (range 1e-53 to exactly 0). The wk23 probe at `[0.495, 0.404]` returned −8.17e-5 — the first non-trivial signal since wk15 and the third-strongest ever detected. This suggests the non-zero support extends beyond the narrow `[0.65, 0.68]` zone, with a possible low-amplitude tail toward the south-west. The strongest signal (−0.00765 at wk13) was never surpassed.
-- **F2 (2D, log-likelihood)**: Progressive improvement across rounds; wk20 achieved 0.697 at `[0.859, 0.343]`. The wk23 boundary probe at `[0.970, 0.374]` returned −0.053 — the first negative output observed — confirming the productive ridge drops off sharply beyond x1 ≈ 0.87. The optimal zone is concentrated around `[0.85–0.87, 0.30–0.40]`.
-- **F3 (3D, drug compounds)**: Best result (−0.056) found in the first student query (wk13). The wk23 query `[0.977, 0.007, 0.491]` returned −0.077 (second-best student result), confirming high A + low B + moderate C as the productive recipe. Optimal mix: A > 0.45, B < 0.02, C ≈ 0.49–0.56.
-- **F4 (4D, warehouse)**: Massive volatility (−33.24 to +0.303). The wk23 query `[0.354, 0.393, 0.352, 0.439]` returned −0.077 — slightly negative despite being inside the safe cluster. This confirms the landscape has razor-sharp cliffs; even small perturbations within the [0.35–0.45] zone can cross from positive to negative territory.
-- **F5 (4D, chemical yield)**: Unimodal peak confirmed in the upper corner. Best output grew from ~1089 (initial) to 6117 (wk15). The wk23 near-zero corner probe `[0.070, 0.007, 0.002, 0.041]` returned only 163 — 37× lower than the peak — definitively confirming all four parameters must exceed ~0.85 for competitive yields.
-- **F6 (5D, cake recipe)**: Best at −0.337 (wk17) with high butter (~0.99), moderate eggs (~0.62), low milk (~0.19). The wk23 probe with very low flour (0.031) returned −1.12, confirming flour is a critical positive driver (optimal ~0.35–0.40). Emerging recipe: moderate flour (0.35–0.40), moderate sugar/eggs (0.37–0.62), high butter (>0.99), low milk (<0.19).
-- **F7 (6D, ML hyperparameters)**: Strong improvement trajectory from wk19–wk22 (outputs 2.34→2.57→2.79→2.65). Best at wk20 (2.791) with very low HP1 (~0.02). The wk23 query deliberately re-submitted the wk22 input and returned the identical output (2.652), confirming the function is deterministic and noise-free. The productive subspace is approximately `[0.02–0.15, 0.15–0.24, 0.33–0.47, 0.28–0.41, 0.21–0.35, 0.64–0.72]`.
-- **F8 (8D, black-box)**: Peak at wk18 (9.895) with high P5 (0.951) and P8 (0.914). The wk23 query tested high P6 (0.989) with near-zero P5 (0.009) and low P8 (0.073), returning 9.315 (4th best). This reveals P6 as a previously underestimated driver — achieving 94% of the peak output without the two previously-assumed dominant parameters. The function may have multiple high-performance pathways through the 8D space.
+- **F1 (2D, contamination)**: Signal is extremely localised. Outputs from wk16–wk22 were indistinguishable from zero; wk23 returned the first non-trivial signal since wk15 (−8.17e-5 at `[0.495, 0.404]`). The wk24 north-edge probe `[0.566, 1.0]` returned exactly zero, confirming the signal tail does not extend to the upper boundary. The non-zero support remains concentrated around `[0.65, 0.68]` with a possible low-amplitude tail toward the south-west.
+- **F2 (2D, log-likelihood)**: Best remains 0.697 at wk20 `[0.859, 0.343]`. The wk24 low-x2 probe `[0.566, 0.192]` returned only 0.102, confirming the productive ridge requires both x1 > 0.85 and x2 ≈ 0.30–0.40. Queries outside this narrow band (wk23: high x1 → negative; wk24: low x1+x2 → weak) consistently underperform.
+- **F3 (3D, drug compounds)**: Best (−0.056) from wk13. The wk24 extreme high-C probe `[0.398, 0.013, 0.995]` returned −0.508 — worst student result, 9× worse than best. Very high Compound C (>0.99) is strongly detrimental. Optimal C must stay in the 0.49–0.56 range; both extremes are harmful.
+- **F4 (4D, warehouse)**: Massive volatility (−33.24 to +0.303). The wk24 query `[0.461, 0.409, 0.352, 0.423]` returned −0.163, confirming that HP1 > 0.45 crosses the landscape cliff. The viable positive zone is extremely narrow around HP1 ≈ 0.39–0.44.
+- **F5 (4D, chemical yield)**: Unimodal peak at 6117 (wk15). The wk24 query with P3=0.097 returned only 2640, confirming that even one low parameter halves the yield. All four parameters must simultaneously exceed ~0.85.
+- **F6 (5D, cake recipe)**: Best at −0.337 (wk17). The wk24 probe with near-zero sugar (0.044) and eggs (0.031) returned −2.526, revealing sugar and eggs as critical positive drivers alongside flour and butter. High milk (0.993) also strongly detrimental. Optimal recipe: flour 0.35–0.40, sugar >0.37, eggs >0.37, butter >0.99, milk <0.19.
+- **F7 (6D, ML hyperparameters)**: **New best at wk24: 2.908** at `[0.219, 0.221, 0.481, 0.355, 0.355, 0.597]`, surpassing wk20's 2.791 by 4.2%. Higher HP1 (0.22 vs 0.02) and lower HP6 (0.60 vs 0.64) — the productive subspace is broader than initially characterised: `[0.02–0.22, 0.15–0.24, 0.33–0.48, 0.28–0.41, 0.21–0.36, 0.60–0.72]`.
+- **F8 (8D, black-box)**: Peak at wk18 (9.895). The wk24 high-P2+P4+P6+P7 test returned only 7.025 — lowest in recent rounds. High P7 (0.976) appears detrimental; P5 and P8 remain the strongest drivers, P6 is secondary, and P7 is likely neutral or negative.
 
 ---
 
@@ -129,7 +130,7 @@
 5. **Uniform candidate grid**: For high-dim functions (F7–F8), candidates are uniform random draws. If the true optimum is in a very small region, it may not be sampled as a candidate and will be missed.
 
 ### Limitations and failure modes
-- **Small dataset size**: With 21–51 observations, bootstrap ensemble variance estimates are noisy. The GP is the most reliable uncertainty model at this scale.
+- **Small dataset size**: With 22–52 observations, bootstrap ensemble variance estimates are noisy. The GP is the most reliable uncertainty model at this scale.
 - **Isotropic RBF kernel**: The isotropic kernel assumes all input dimensions are equally important. For F8, parameters 5 and 8 appear to dominate the output; an ARD (Automatic Relevance Determination) kernel would learn per-dimension length scales and direct exploration more efficiently.
 - **No batch acquisition**: One point is submitted per round per function. Batch BO (selecting multiple non-redundant points simultaneously) would be more efficient.
 - **Bootstrap ≠ Bayesian uncertainty**: The SVR and MLP ensemble standard deviations are frequentist approximations, not calibrated posterior estimates. They may over- or under-estimate true uncertainty.

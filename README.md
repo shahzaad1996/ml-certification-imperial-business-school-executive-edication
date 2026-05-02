@@ -223,7 +223,30 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   | F7 | `[0.149979, 0.153680, 0.445210, 0.316094, 0.205053, 0.716571]` | 2.652 | Deliberate re-query of wk22 input; returned identical output (2.652), confirming the function is deterministic and noise-free |
   | F8 | `[0.179766, 0.235992, 0.241664, 0.009754, 0.008830, 0.989489, 0.083388, 0.073262]` | 9.315 | High P6 (0.989) but near-zero P5 (0.009) and low P8 (0.073); 4th-best output — reveals P6 as a previously underestimated driver alongside P5 and P8 |
 
-- **Final best outputs per function (after all 11 rounds, wk13–wk23)**:
+### Thirteenth Submission (Week 24) — Exploitation Refinement and Extremes Testing
+
+- **Approach**: This round combined targeted exploitation near known optima (F7) with deliberate extreme-parameter probes (F3, F5, F6, F8) to further map boundary conditions. The surrogate stack and acquisition parameters remain unchanged from submission 12. Key goals: (1) attempt to surpass the F7 best by perturbing the productive subspace, (2) test whether extreme Compound C (F3) or extreme sugar/eggs (F6) configurations are viable, (3) continue characterising the multi-pathway structure of F8.
+
+- **Surrogate stack (unchanged from submission 12 — all sklearn, no TensorFlow)**:
+  - **GP** (`RBF + WhiteKernel`, `normalize_y=True`, 10 restarts) — primary surrogate for all functions.
+  - **SVR bootstrap ensemble** (25 models, `RBF`, `C=10`, `epsilon=1e-3`) — robust baseline with empirical uncertainty (F1).
+  - **MLP bootstrap ensemble** (50 models, `hidden=(64,64)`, `relu`, `max_iter=500`) — scalable surrogate (F1).
+  - **Classification layer** (`LogisticRegression` + `SVC(probability=True)` + `MLPClassifier(32,16)`) — entropy-based acquisition for signal-sparse F1.
+
+- **Per-function query rationale (wk24)**:
+
+  | Function | wk24 input | wk24 output | Strategy / finding |
+  |---|---|---|---|
+  | F1 | `[0.565656, 1.000000]` | 0 | North-edge probe at x2=1.0; returned zero, confirming the non-zero support does not extend to the upper boundary. The signal tail detected at wk23 `[0.49, 0.40]` does not continue northward |
+  | F2 | `[0.565656, 0.191919]` | 0.102 | Low-x2 probe; weak positive output (7× below best 0.697). Confirms the productive ridge requires x2 ≈ 0.30–0.40 and x1 > 0.85 — this query was too far south and west |
+  | F3 | `[0.397631, 0.012935, 0.995075]` | −0.508 | Extreme high-C probe with moderate A and low B; **worst student output** — 9× worse than best (−0.056). Very high Compound C (>0.99) is strongly detrimental; optimal C remains ≈ 0.49–0.56 |
+  | F4 | `[0.461404, 0.409086, 0.352151, 0.423373]` | −0.163 | Slightly outside the safe cluster centre (HP1=0.461 vs optimal ~0.40); negative output confirms the narrow viable zone. HP1 > 0.45 appears to cross the landscape cliff |
+  | F5 | `[0.997964, 0.986498, 0.096838, 0.830882]` | 2640 | Two high params (P1≈1.0, P2≈0.99) but P3 low (0.097); output 2.3× below peak — confirms **all four** parameters must be >0.85, not just most of them |
+  | F6 | `[0.872310, 0.043940, 0.030514, 0.995411, 0.993058]` | −2.526 | High flour (0.87) and high butter (0.995) but near-zero sugar (0.044) and eggs (0.031) with high milk (0.993); 7.5× worse than best — confirms sugar and eggs are also critical positive drivers, and high milk remains strongly detrimental |
+  | F7 | `[0.218524, 0.220790, 0.480522, 0.354701, 0.354809, 0.596844]` | **2.908** | **NEW BEST** — surpasses wk20's 2.791 by 4.2%. Slightly higher HP1 (0.22 vs 0.02), similar HP3/HP4, lower HP6 (0.60 vs 0.64). Confirms the productive subspace is broader than assumed |
+  | F8 | `[0.009290, 0.980500, 0.084033, 0.872849, 0.035300, 0.959276, 0.976142, 0.034148]` | 7.025 | High P2+P4+P6+P7 pathway test; lowest output in recent rounds. Unlike the P6-only success at wk23 (9.315), this high-P7 configuration significantly underperformed — P7 appears to be a negative or neutral driver |
+
+- **Final best outputs per function (after all 12 rounds, wk13–wk24)**:
 
   | Function | Scenario | Best output | Best input | Best week |
   |---|---|---|---|---|
@@ -233,26 +256,28 @@ The challenge lies in balancing exploration (searching for new areas of the inpu
   | F4 | 4D warehouse tuning | **0.303** | `[0.404, 0.434, 0.436, 0.384]` | wk20 |
   | F5 | 4D chemical yield | **6117.3** | `[0.886, 0.998, 0.960, 0.993]` | wk15 |
   | F6 | 5D cake recipe | **−0.337** | `[0.399, 0.372, 0.622, 0.993, 0.189]` | wk17 |
-  | F7 | 6D ML hyperparameters | **2.791** | `[0.022, 0.239, 0.465, 0.283, 0.347, 0.636]` | wk20 |
+  | F7 | 6D ML hyperparameters | **2.908** | `[0.219, 0.221, 0.481, 0.355, 0.355, 0.597]` | wk24 |
   | F8 | 8D black-box | **9.895** | `[0.014, 0.203, 0.064, 0.132, 0.951, 0.485, 0.038, 0.914]` | wk18 |
 
-- **Key findings across all eleven rounds (wk13–wk23)**:
-  - **F1 (2D, radiation)**: Signal is extremely localised. Outputs collapsed to effectively zero from wk16–wk22 (values in the range 1e-53 to 0). The strongest reading (−0.00765 at wk13) was never surpassed. However, the wk23 probe at `[0.495, 0.404]` returned −8.17e-5 — the first non-trivial signal since wk15 and the third-strongest ever detected. This suggests the non-zero support extends beyond the narrow `[0.65, 0.68]` zone, possibly with a secondary low-amplitude tail toward the south-west.
-  - **F2 (2D, log-likelihood)**: Steady improvement culminating in 0.697 at wk20. The wk23 boundary probe at extreme high x1 (`[0.970, 0.374]`) returned −0.053 — the first negative output observed — confirming the productive ridge drops off sharply beyond x1 ≈ 0.87. The optimal zone remains concentrated around `[0.85–0.87, 0.30–0.40]`.
-  - **F3 (3D, drug compounds)**: Best output (−0.056) was found in the first student query (wk13). The wk23 query `[0.977, 0.007, 0.491]` returned −0.077 (second-best student result), confirming the high-A, low-B, moderate-C recipe is consistently productive. The optimal mix requires Compound A > 0.45, Compound B < 0.02, and Compound C ≈ 0.49–0.56.
-  - **F4 (4D, warehouse)**: Extreme volatility — outputs ranged from −33.24 (wk16) to +0.303 (wk20). The wk23 query `[0.354, 0.393, 0.352, 0.439]` returned −0.077, turning slightly negative despite being inside the safe cluster. This confirms the landscape has razor-sharp cliffs — even small perturbations within the [0.35–0.45] zone can cross from positive to negative territory.
-  - **F5 (4D, chemical yield)**: Unimodal peak confirmed in the upper corner (best 6117 at wk15). The wk23 near-zero corner probe `[0.070, 0.007, 0.002, 0.041]` returned only 163 — 37× lower than the peak — definitively confirming all four parameters must exceed ~0.85 for competitive yields. The function's response spans two orders of magnitude between the floor and peak.
-  - **F6 (5D, cake recipe)**: Consistently negative outputs with best at −0.337 (wk17). The wk23 probe with very low flour (0.031) but high butter (0.989) and low milk (0.063) returned −1.12, confirming flour is a critical positive driver that must stay above ~0.35. The emerging recipe: moderate flour (0.35–0.40), moderate eggs (0.37–0.62), moderate sugar (0.47–0.62), high butter (>0.99), low milk (<0.19).
-  - **F7 (6D, ML hyperparameters)**: Strong improvement trajectory from wk19–wk22 (outputs 2.34→2.57→2.79→2.65). Best at wk20 (2.791). The wk23 query deliberately re-submitted the wk22 input and returned the identical output (2.652), confirming the function is deterministic and noise-free. The productive subspace remains approximately `[0.02–0.15, 0.15–0.24, 0.33–0.47, 0.28–0.41, 0.21–0.35, 0.64–0.72]`.
-  - **F8 (8D, black-box)**: Peak at wk18 (9.895) with high P5 (0.951) and P8 (0.914). The wk23 query tested high P6 (0.989) with near-zero P5 (0.009) and low P8 (0.073), returning 9.315 (4th best). This reveals P6 as a previously underestimated driver — achieving 94% of the peak output without the two previously-assumed dominant parameters (P5 and P8). The function may have multiple high-performance pathways through the 8D space.
+- **Key findings across all twelve rounds (wk13–wk24)**:
+  - **F1 (2D, radiation)**: Signal is extremely localised. Outputs collapsed to effectively zero from wk16–wk22, with a brief non-trivial signal at wk23 (−8.17e-5 at `[0.49, 0.40]`). The wk24 north-edge probe `[0.566, 1.0]` returned zero, confirming the signal tail does not extend to the upper boundary. The non-zero support remains concentrated around `[0.65, 0.68]` with a possible low-amplitude tail toward the south-west.
+  - **F2 (2D, log-likelihood)**: Best remains 0.697 at wk20. The wk24 probe at `[0.566, 0.192]` returned 0.102 — weak but positive. Both wk23 (x1=0.97, negative) and wk24 (x1=0.57, weak) confirm the productive zone is narrow: x1 ≈ 0.85–0.87, x2 ≈ 0.30–0.40.
+  - **F3 (3D, drug compounds)**: Best output (−0.056) still from wk13. The wk24 extreme high-C probe `[0.398, 0.013, 0.995]` returned −0.508 — the worst student result, 9× worse than best. This definitively establishes that Compound C must stay moderate (0.49–0.56); extreme values in either direction are detrimental.
+  - **F4 (4D, warehouse)**: Best at +0.303 (wk20). The wk24 query `[0.461, 0.409, 0.352, 0.423]` returned −0.163 — negative despite being near the cluster. HP1 = 0.461 appears to cross the landscape cliff (optimal HP1 ≈ 0.39–0.44). The viable zone is extremely narrow.
+  - **F5 (4D, chemical yield)**: Best 6117 at wk15. The wk24 query with P3=0.097 returned only 2640 — confirming that even one low parameter (out of four) halves the yield. All four parameters must simultaneously exceed ~0.85.
+  - **F6 (5D, cake recipe)**: Best at −0.337 (wk17). The wk24 probe with near-zero sugar (0.044) and eggs (0.031) but high flour (0.87) and butter (0.995) returned −2.526. This reveals that sugar and eggs are also critical positive drivers, not just flour and butter. High milk (0.993) continues to be strongly detrimental. Optimal recipe requires balanced moderate-to-high flour (0.35–0.40), sugar (>0.37), eggs (>0.37), butter (>0.99), and very low milk (<0.19).
+  - **F7 (6D, ML hyperparameters)**: **New best at wk24: 2.908** at `[0.219, 0.221, 0.481, 0.355, 0.355, 0.597]`, surpassing wk20's 2.791 by 4.2%. The winning input has higher HP1 (0.22 vs 0.02) and lower HP6 (0.60 vs 0.64) than the previous best — the productive subspace is broader than previously assumed, approximately `[0.02–0.22, 0.15–0.24, 0.33–0.48, 0.28–0.41, 0.21–0.36, 0.60–0.72]`.
+  - **F8 (8D, black-box)**: Peak at wk18 (9.895). The wk24 high-P2+P4+P6+P7 test returned only 7.025 — the lowest in recent rounds. High P7 (0.976) appears detrimental compared to the wk23 result where high P6 alone (with low P7) achieved 9.315. P5 and P8 remain the strongest drivers; P6 is a secondary driver; P7 is likely neutral or negative.
 
-- **Lessons learned (accumulated across all 11 rounds)**:
+- **Lessons learned (accumulated across all 12 rounds)**:
   - Step sizes matter more than direction: conservative near-repeats consistently outperformed bold gradient-following perturbations across all functions.
   - Higher dimensions demand more candidates (50k for 8D) and higher κ (exploration), while lower dimensions benefit from grid-based exploitation.
   - The GP surrogate with RBF kernel performed reliably for all dimensionalities when paired with appropriate κ scheduling. Ensemble surrogates (SVR, MLP) added value primarily for uncertainty quantification on signal-sparse functions (F1).
   - Exploratory probes into untested regions carried high downside risk (F4: −33.24; F5: 103; F6: −2.75) but were essential for identifying landscape boundaries.
   - Boundary probing in round 12 revealed that productive regions can have unexpected tails (F1 signal at `[0.49, 0.40]`) and that assumed dominant parameters may not be the only drivers (F8: P6 nearly as impactful as P5+P8).
   - Reproducibility verification (F7 re-query) confirmed deterministic function behaviour, validating that observed noise in other functions is genuine landscape roughness rather than evaluation noise.
+  - Round 13 delivered a new F7 best (2.908 vs 2.791) by exploring a slightly broader subspace — confirming that productive regions can be wider than initial convergence suggests, and that continued exploitation with small perturbations remains valuable even in later rounds.
+  - Extreme single-parameter probes (F3: C=0.995, F6: sugar≈0, eggs≈0) consistently produced worst-case outputs, establishing clear boundary constraints for each function.
 
 ---
 
